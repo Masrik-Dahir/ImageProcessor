@@ -1,0 +1,12 @@
+{
+  "NotificationConfiguration": {
+    "LambdaFunctionConfigurations": [
+      {
+        "LambdaFunctionArn": "arn:aws:lambda:us-east-1:608089521175:function:ImageProcessor",
+        "Events": [
+          "s3:ObjectCreated:*"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  ImageProcessorLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ImageProcessor
+      Handler: app.lambda_handler
+      CodeUri: ImageProcessor/
+      Runtime: python3.12
+      Timeout: 900                # 15 minutes
+      MemorySize: 3008            # MB
+      EphemeralStorage:
+        Size: 10240               # MB (10 GB)
+      Role: !GetAtt ImageProcessorRole.Arn
+      Environment:
+        Variables:
+          SECRET_NAME: "google_drive_api"
+          REGION_NAME: "us-east-1"
+
+  ImageProcessorPermissionFromS3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ImageProcessorLambda.Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: arn:aws:s3:::masrikdahir-image
+
+  ImageProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ImageProcessorRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ImageProcessorSecretsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: "secretsmanager:GetSecretValue"
+                Resource:
+                  - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:google_drive_api-*"
+        - PolicyName: ImageProcessorS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:*
+                Resource:
+                  - "arn:aws:s3:::masrikdahir"
+                  - "arn:aws:s3:::masrikdahir/*"
+                  - "arn:aws:s3:::masrikdahir-image"
+                  - "arn:aws:s3:::masrikdahir-image/*"
+        - PolicyName: ImageProcessorDynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - "arn:aws:dynamodb:*:*:table/*"
+        - PolicyName: CloudWatchLogsFullAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                  - cloudwatch:GenerateQuery
+                  - cloudwatch:GenerateQueryResultsSummary
+                Resource:
+                  - "*"
+        - PolicyName: CloudFrontInvalidationAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource:
+                  - arn:aws:cloudfront::608089521175:distribution/E2SSEF4XZUSQ74
+
+Outputs:
+  ImageProcessorLambdaFunction:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt ImageProcessorLambda.Arn
